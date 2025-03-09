@@ -34,8 +34,9 @@ class MySQL_Event {
 	uint64_t rows_sent;
 	uint32_t client_stmt_id;
 	const char * gtid;
+	MySQL_Session *session; // new member to track creating session
 	public:
-	MySQL_Event(log_event_type _et, uint32_t _thread_id, char * _username, char * _schemaname , uint64_t _start_time , uint64_t _end_time , uint64_t _query_digest, char *_client, size_t _client_len);
+	MySQL_Event(log_event_type _et, uint32_t _thread_id, char * _username, char * _schemaname , uint64_t _start_time , uint64_t _end_time , uint64_t _query_digest, char *_client, size_t _client_len, MySQL_Session *sess_ptr = nullptr);
 	uint64_t write(std::fstream *f, MySQL_Session *sess);
 	uint64_t write_query_format_1(std::fstream *f);
 	uint64_t write_query_format_2_json(std::fstream *f);

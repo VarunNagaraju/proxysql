@@ -42,7 +42,7 @@ static inline int write_encoded_length(unsigned char *p, uint64_t val, uint8_t l
 	return len;
 }
 
-MySQL_Event::MySQL_Event (log_event_type _et, uint32_t _thread_id, char * _username, char * _schemaname , uint64_t _start_time , uint64_t _end_time , uint64_t _query_digest, char *_client, size_t _client_len) {
+MySQL_Event::MySQL_Event (log_event_type _et, uint32_t _thread_id, char * _username, char * _schemaname , uint64_t _start_time , uint64_t _end_time , uint64_t _query_digest, char *_client, size_t _client_len, MySQL_Session *sess_ptr) {
 	thread_id=_thread_id;
 	username=_username;
 	schemaname=_schemaname;
@@ -63,6 +63,7 @@ MySQL_Event::MySQL_Event (log_event_type _et, uint32_t _thread_id, char * _usern
 	rows_sent=0;
 	client_stmt_id=0;
 	gtid = NULL;
+	session = sess_ptr;
 }
 
 void MySQL_Event::set_client_stmt_id(uint32_t client_stmt_id) {
@@ -735,7 +736,7 @@ void MySQL_Logger::log_request(MySQL_Session *sess, MySQL_Data_Stream *myds) {
 		sess->CurrentQuery.start_time + curtime_real - curtime_mono,
 		sess->CurrentQuery.end_time + curtime_real - curtime_mono,
 		query_digest,
-		ca, cl
+		ca, cl, sess
 	);
 	char *c = NULL;
 	int ql = 0;
