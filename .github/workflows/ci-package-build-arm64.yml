@@ -73,7 +73,7 @@ jobs:
 #        dist: [ 'almalinux8','almalinux9','centos7','centos8','centos9','debian10','debian11','debian12','fedora38','fedora39','fedora40','fedora41','opensuse15','ubuntu16','ubuntu18','ubuntu20','ubuntu22','ubuntu24' ]
 #       # v3.0
 #        dist: [ 'almalinux8','almalinux9','centos9','debian12','fedora40','fedora41','opensuse15','ubuntu22','ubuntu24' ]
-        arch: [ '-arm' ]
+        arch: [ '', '-arm' ]
         dist: ${{ fromJson(needs.select.outputs.dists) }}
         type: [ '','-dbg','-clang' ]
         exclude:
@@ -89,10 +89,10 @@ jobs:
 
     runs-on: ubuntu-24.04${{ matrix.arch }}
     env:
-      ARCH: ${{ matrix.arch }}
+      ARCH: ${{ runner.arch }}
       DIST: ${{ matrix.dist }}
       TYPE: ${{ matrix.type }}
-      MATRIX: '(${{ matrix.dist }},${{ matrix.type }})'
+      MATRIX: '(${{ matrix.dist }},${{ matrix.type }},${{ runner.arch }})'
 
     steps:
 
