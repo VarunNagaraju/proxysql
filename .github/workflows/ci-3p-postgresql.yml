@@ -6,15 +6,15 @@ on:
     inputs:
       trigger:
         type: string
-      testtree:
-        type: string
+#      testtree:
+#        type: string
       infradb:
         type: string
       connector:
         type: string
 
 env:
-  TESTTREE: ${{ inputs.testtree || 'main' }}
+  TESTTREE: ${{ inputs.testtree || inputs.trigger.event.inputs.testtree || 'main' }}
   TESTNAME: postgresql
   TESTDIST: debian12
   SHA: ${{ inputs.trigger && fromJson(inputs.trigger).event.workflow_run.head_sha || github.sha }}
@@ -60,7 +60,7 @@ jobs:
           common
           libs
           infra-docker-hoster
-          test_postgresql
+          test_${{ env.TESTNAME }}
 #          proxysql
 
 #    - name: Wait for cache
@@ -100,11 +100,11 @@ jobs:
         #echo "==================================="
         
         cd proxysql_3p_testing/
-        ./setup.sh test_postgresql/postgresql
-        git switch ${{ env.TESTTREE }}
-        git config user.email "GH-Actions@proxysql.com"
-        git config user.name "GH-Actions"
-        git rebase main -f -s recursive -X theirs
+        ./setup.sh test_${{ env.TESTNAME }}/${{ env.TESTNAME }}
+        #git switch ${{ env.TESTTREE }}
+        #git config user.email "GH-Actions@proxysql.com"
+        #git config user.name "GH-Actions"
+        #git rebase main -f -s recursive -X theirs
         
         # use cached build
         rm -rf ./proxysql && mv ../proxysql . || true
@@ -118,7 +118,7 @@ jobs:
       run: |
         set +e
         
-        cd proxysql_3p_testing/test_postgresql
+        cd proxysql_3p_testing/test_${{ env.TESTNAME }}
         sed -i 's/docker-compose/docker compose/g' run-tests.bash
         ./run-tests.bash
         RC=$?
@@ -131,7 +131,7 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set +e
-        cd proxysql_3p_testing/test_postgresql
+        cd proxysql_3p_testing/test_${{ env.TESTNAME }}
 
         GHUSER="$(id -u):$(id -g)"
         sudo chown -R ${GHUSER} ./logs
@@ -147,7 +147,7 @@ jobs:
         name: ${{ github.workflow }}-${{ env.SHA }}-${{ matrix.infradb }}-${{ matrix.connector }}-logs-run#${{ github.run_number }}
         path: |
           proxysql_3p_testing/proxysql
-          proxysql_3p_testing/test_postgresql/logs
+          proxysql_3p_testing/test_${{ env.TESTNAME }}/logs
           
     - uses: LouisBrunner/checks-action@v2.0.0
       if: always()

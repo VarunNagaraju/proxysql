@@ -63,7 +63,7 @@ jobs:
           common
           libs
           infra-docker-hoster
-          test_django-framework
+          test_${{ env.TESTNAME }}
 #          proxysql
 
 #    - name: Wait for cache
@@ -96,7 +96,7 @@ jobs:
         set +e
         
         cd proxysql_3p_testing/
-        ./setup.sh test_django-framework
+        ./setup.sh test_${{ env.TESTNAME }}
         #git switch ${{ env.TESTTREE }}
         #git config user.email "GH-Actions@proxysql.com"
         #git config user.name "GH-Actions"
@@ -106,12 +106,12 @@ jobs:
         rm -rf ./proxysql && mv ../proxysql . || true
         
         # extend timout
-        cd test_django-framework
+        cd test_${{ env.TESTNAME }}
         #sed -i 's/timeout -v -s1 800 //' run-tests.bash
 
         # fix permissions
-        mkdir django-framework/cache
-        chmod -R 777 django-framework/cache
+        mkdir ${{ env.TESTNAME }}/cache
+        chmod -R 777 ${{ env.TESTNAME }}/cache
 
         # set tested database infra
         #sed -i 's/^fn_test_proxysql m/#fn_test_proxysql m/' run-tests.bash
@@ -120,7 +120,7 @@ jobs:
 
         # cherry-pick utf8mb4 patch from django 5.2.x
         # https://github.com/django/django/commit/9609b48b9149aa0b96208588b99ce6161be6a287
-        cd django-framework
+        cd ${{ env.TESTNAME }}
         if [[ $(git branch --show-current) == stable/5.1.x ]]; then
           git cherry-pick -n 9609b48 || true
           git add docs/releases/5.2.txt || true
@@ -131,7 +131,7 @@ jobs:
       run: |
         set +e
         
-        cd proxysql_3p_testing/test_django-framework
+        cd proxysql_3p_testing/test_${{ env.TESTNAME }}
         #sed -i 's/docker-compose/docker compose/g' run-tests.bash
         ./run-tests.bash
         RC=$?
@@ -142,7 +142,7 @@ jobs:
     - name: Check baseline
       run: |
         set +e
-        cd proxysql_3p_testing/test_django-framework
+        cd proxysql_3p_testing/test_${{ env.TESTNAME }}
         
         GHUSER="$(id -u):$(id -g)"
         sudo chown -R ${GHUSER} ./logs
@@ -157,7 +157,7 @@ jobs:
       with:
         name: ${{ github.workflow }}-${{ env.SHA }}-${{ matrix.infradb }}-${{ matrix.connector }}-logs-run#${{ github.run_number }}
         path: |
-          proxysql_3p_testing/test_django-framework/logs
+          proxysql_3p_testing/test_${{ env.TESTNAME }}/logs
           
     - uses: LouisBrunner/checks-action@v2.0.0
       if: always()

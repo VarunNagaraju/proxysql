@@ -6,15 +6,15 @@ on:
     inputs:
       trigger:
         type: string
-      testtree:
-        type: string
+#      testtree:
+#        type: string
       infradb:
         type: string
       connector:
         type: string
 
 env:
-  TESTTREE: ${{ inputs.testtree || 'main' }}
+  TESTTREE: ${{ inputs.testtree || inputs.trigger.event.inputs.testtree || 'main' }}
   TESTNAME: php-pdo-mysql
   TESTDIST: debian12
   SHA: ${{ inputs.trigger && fromJson(inputs.trigger).event.workflow_run.head_sha || github.sha }}
@@ -63,7 +63,7 @@ jobs:
           common
           libs
           infra-docker-hoster
-          test_php-pdo-mysql
+          test_${{ env.TESTNAME }}
 #          proxysql
 
 #    - name: Wait for cache
@@ -96,24 +96,24 @@ jobs:
         set +e
         
         cd proxysql_3p_testing/
-        ./setup.sh test_php-pdo-mysql/php-src
-        git switch ${{ env.TESTTREE }}
-        git config user.email "GH-Actions@proxysql.com"
-        git config user.name "GH-Actions"
-        git rebase main -f -s recursive -X theirs
+        ./setup.sh test_${{ env.TESTNAME }}/php-src
+        #git switch ${{ env.TESTTREE }}
+        #git config user.email "GH-Actions@proxysql.com"
+        #git config user.name "GH-Actions"
+        #git rebase main -f -s recursive -X theirs
 
         # use cached build
         rm -rf ./proxysql && mv ../proxysql . || true
 
         # extend timout
-        cd test_php-pdo-mysql
+        cd test_${{ env.TESTNAME }}
         sed -i 's/timeout -v -s1 800 //' run-tests.bash
         
     - name: Run tests
       run: |
         set +e
         
-        cd proxysql_3p_testing/test_php-pdo-mysql
+        cd proxysql_3p_testing/test_${{ env.TESTNAME }}
         ./run-tests.bash
         RC=$?
         
@@ -123,7 +123,7 @@ jobs:
     - name: Check baseline
       run: |
         set +e
-        cd proxysql_3p_testing/test_php-pdo-mysql
+        cd proxysql_3p_testing/test_${{ env.TESTNAME }}
 
         GHUSER="$(id -u):$(id -g)"
         sudo chown -R ${GHUSER} ./logs
@@ -138,7 +138,7 @@ jobs:
       with:
         name: ${{ github.workflow }}-${{ env.SHA }}-${{ matrix.infradb }}-${{ matrix.connector }}logs-run#${{ github.run_number }}
         path: |
-          proxysql_3p_testing/test_php-pdo-mysql/logs
+          proxysql_3p_testing/test_${{ env.TESTNAME }}/logs
           
     - uses: LouisBrunner/checks-action@v2.0.0
       if: always()
