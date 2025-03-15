@@ -16,18 +16,25 @@ jobs:
   clean:
     runs-on: ubuntu-24.04
     steps:
+    - name: Git describe
+      id: ghd
+      uses: proudust/gh-describe@v2
+      with:
+#        repo: ${{ github.repository }}
+        commit-ish: ${{ env.SHA }}
+  
     - name: Clean packages
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # gh release delete-asset ${BRANCH}-head
         gh release delete ${BRANCH}-head --repo ${{ github.repository }} --cleanup-tag || true
-        gh release create ${BRANCH}-head --repo ${{ github.repository }} --title ${BRANCH}-head --draft --prerelease --notes-file - << EOF
+        gh release create ${BRANCH}-head --repo ${{ github.repository }} --title "${BRANCH}-head - ${{ steps.ghd.outputs.describe }}" --target ${{ env.SHA }} --draft --prerelease --notes-file - << EOF
         ## Development Snapshot
         
         GH-Action Package-Build on ${BRANCH} merge
         
-        Version : **${GIT_VERSION}**
+        Version : **${{ steps.ghd.outputs.describe }}**
         
         Started : **$(date '+%Y-%m-%d %H:%M:%S %Z')**
         
@@ -86,6 +93,11 @@ jobs:
             type: '-clang'
           - dist: 'ubuntu18'
             type: '-clang'
+#         unneded - not build before v3.0.0
+          - arch: 'arm64'
+            type: '-clang'
+          - arch: 'arm64'
+            type: '-dbg'
 
     runs-on: ubuntu-24.04${{ matrix.arch == 'arm64' && '-arm' || '' }}
     env:
@@ -114,34 +126,7 @@ jobs:
         repository: ${{ github.repository }}
         ref: ${{ env.SHA }}
         fetch-depth: 0
-      
-    - name: Set GIT_VERSION
-      run: |
-        git fetch --tags --force
-        echo "GIT_VERSION=$(git describe --long --abbrev=7)" >> $GITHUB_ENV
-    
-    - name: Update release
-      if: ${{ !cancelled() }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        if [[ "${{ matrix.dist }}" = "centos9" ]] && [[ "${{ matrix.type }}" = "" ]] && [[ "${{ matrix.arch }}" = "amd64" ]]; then
-        gh release edit ${BRANCH}-head --draft --prerelease --repo ${{ github.repository }} --tag ${BRANCH}-head --title "${BRANCH}-head - ${GIT_VERSION}" --notes-file - << EOF
-        ## Development Snapshot
-        
-        GH-Action Package-Build on ${BRANCH} merge
-        
-        Version : **${GIT_VERSION}**
-        
-        Updated : **$(date '+%Y-%m-%d %H:%M:%S %Z')**
-        
-        Status : **Build in progress**
-        
-        [![CI-Package-Build](https://github.com/${{ github.repository }}/actions/workflows/CI-package-build.yml/badge.svg)](https://github.com/${{ github.repository }}/actions/workflows/CI-package-build.yml)
-        
-        EOF
-        fi
-    
+       
     - name: Build package
       run: |
         make ${{ matrix.dist }}${{ matrix.type }}
@@ -191,4 +176,4 @@ jobs:
         [![CI-Package-Build](https://github.com/${{ github.repository }}/actions/workflows/CI-package-build.yml/badge.svg)](https://github.com/${{ github.repository }}/actions/workflows/CI-package-build.yml)
         
         EOF
-
+        
