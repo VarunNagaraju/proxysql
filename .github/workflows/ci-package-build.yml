@@ -21,7 +21,8 @@ jobs:
       uses: proudust/gh-describe@v2
       with:
 #        repo: ${{ github.repository }}
-        commit-ish: ${{ env.SHA }}
+#        commit-ish: ${{ env.SHA }}
+        commit-ish: ${{ env.BRANCH }}
   
     - name: Clean packages
       env:
