@@ -528,6 +528,7 @@ void ProxySQL_Main_process_global_variables(int argc, const char **argv) {
 	GloVars.parse(argc,argv);
 	GloVars.process_opts_pre();
 	GloVars.restart_on_missing_heartbeats = 10; // default
+	GloVars.log_verbosity_level = loglevel_info; // output all logging entries to stderr by default
 	// alwasy try to open a config file
 	if (GloVars.confFile->OpenFile(GloVars.config_file) == true) {
 		GloVars.configfile_open=true;
@@ -540,6 +541,19 @@ void ProxySQL_Main_process_global_variables(int argc, const char **argv) {
 			rc=root.lookupValue("restart_on_missing_heartbeats", restart_on_missing_heartbeats);
 			if (rc==true) {
 				GloVars.restart_on_missing_heartbeats=restart_on_missing_heartbeats;
+			}
+		}
+		if (root.exists("log_verbosity_level") == true) {
+			// read log_verbosity_level from config file
+			int log_verbosity_level;
+			bool rc;
+			rc=root.lookupValue("log_verbosity_level", log_verbosity_level);
+			if (rc == true) {
+				if (log_verbosity_level < loglevel_error || log_verbosity_level > loglevel_info) {
+					proxy_error("Invalid value for log_verbosity_level: %d\n", log_verbosity_level);
+					log_verbosity_level = loglevel_info;
+				}
+				GloVars.log_verbosity_level=log_verbosity_level;
 			}
 		}
 		if (root.exists("execute_on_exit_failure")==true) {
