@@ -476,6 +476,7 @@ class MySQL_Threads_Handler
 		int query_digests_grouping_limit;
 		int query_digests_groups_grouping_limit;
 		bool parse_failure_logs_digest;
+		bool log_mysql_statements;
 		bool default_reconnect;
 		bool have_compress;
 		int protocol_compression_level;

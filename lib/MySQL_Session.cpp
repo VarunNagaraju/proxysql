@@ -53,6 +53,8 @@
 #define SELECT_VARIABLE_IDENTITY_LIMIT1 "SELECT @@IDENTITY LIMIT 1"
 #define SELECT_VARIABLE_IDENTITY_LIMIT1_LEN 25
 
+const char *ALTERNATE_TEXT = "<Query is redacted since log_mysql_statements = false>";
+
 #define EXPMARIA
 
 using std::function;
@@ -3632,7 +3634,9 @@ void MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 						l=253;
 						end = (char *)"...";
 					}
-					string nqn = string((char *)CurrentQuery.QueryPointer,l);
+					std::string nqn = (mysql_thread___log_mysql_statements)
+						? std::string((char *)CurrentQuery.QueryPointer,l)
+						: ALTERNATE_TEXT;
 					char *err_msg = (char *)"Session trying to reach HG %d while locked on HG %d . Rejecting query: %s";
 					char *buf = (char *)malloc(strlen(err_msg)+strlen(nqn.c_str())+strlen(end)+64);
 					sprintf(buf, err_msg, current_hostgroup, locked_on_hostgroup, nqn.c_str(), end);
@@ -3805,7 +3809,9 @@ void MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 						l=253;
 						end = (char *)"...";
 					}
-					string nqn = string((char *)CurrentQuery.stmt_info->query,l);
+					std::string nqn = (mysql_thread___log_mysql_statements)
+						? std::string((char *)CurrentQuery.stmt_info->query,l)
+						: ALTERNATE_TEXT;
 					char *err_msg = (char *)"Session trying to reach HG %d while locked on HG %d . Rejecting query: %s";
 					char *buf = (char *)malloc(strlen(err_msg)+strlen(nqn.c_str())+strlen(end)+64);
 					sprintf(buf, err_msg, current_hostgroup, locked_on_hostgroup, nqn.c_str(), end);
@@ -4524,7 +4530,9 @@ __get_pkts_from_client:
 													l=253;
 													end = (char *)"...";
 												}
-												string nqn = string((char *)CurrentQuery.QueryPointer,l);
+												std::string nqn = (mysql_thread___log_mysql_statements)
+													? string((char *)CurrentQuery.QueryPointer,l)
+													: ALTERNATE_TEXT;
 												char *err_msg = (char *)"Session trying to reach HG %d while locked on HG %d . Rejecting query: %s";
 												char *buf = (char *)malloc(strlen(err_msg)+strlen(nqn.c_str())+strlen(end)+64);
 												sprintf(buf, err_msg, current_hostgroup, locked_on_hostgroup, nqn.c_str(), end);
@@ -5178,7 +5186,9 @@ void MySQL_Session::handler_KillConnectionIfNeeded() {
 		if (mybe->server_myds->myconn && (mybe->server_myds->myconn->async_state_machine != ASYNC_IDLE) && mybe->server_myds->wait_until && (thread->curtime >= mybe->server_myds->wait_until)) {
 			std::string query {};
 
-			if (CurrentQuery.stmt_info == NULL) { // text protocol
+			if (mysql_thread___log_mysql_statements == false) {
+				query.assign(ALTERNATE_TEXT);
+			} else if (CurrentQuery.stmt_info == NULL) { // text protocol
 				query = std::string { mybe->server_myds->myconn->query.ptr, mybe->server_myds->myconn->query.length };
 			} else { // prepared statement
 				query = std::string { CurrentQuery.stmt_info->query, CurrentQuery.stmt_info->query_length };
@@ -6491,10 +6501,13 @@ bool MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 #endif
 			if (index(dig,';') && (index(dig,';') != dig + strlen(dig)-1)) {
 				string nqn;
-				if (mysql_thread___parse_failure_logs_digest)
-					nqn = string(CurrentQuery.get_digest_text());
-				else
-					nqn = string((char *)CurrentQuery.QueryPointer,CurrentQuery.QueryLength);
+				if (mysql_thread___log_mysql_statements == false) {
+					nqn.assign(ALTERNATE_TEXT);
+				} else if (mysql_thread___parse_failure_logs_digest) {
+					nqn.assign(CurrentQuery.get_digest_text());
+				} else {
+					nqn.assign((char *)CurrentQuery.QueryPointer, CurrentQuery.QueryLength);
+				}
 				proxy_warning(
 					"Unable to parse multi-statements command with SET statement from client"
 					" %s:%d: setting lock hostgroup. Command: %s\n", client_myds->addr.addr,
@@ -6553,10 +6566,13 @@ bool MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 						string query_str = string((char *)CurrentQuery.QueryPointer,CurrentQuery.QueryLength);
 						string digest_str = string(CurrentQuery.get_digest_text());
 						string nqn;
-						if (mysql_thread___parse_failure_logs_digest)
-							nqn = digest_str;
-						else
-							nqn = query_str;
+						if (mysql_thread___log_mysql_statements == false) {
+							nqn.assign(ALTERNATE_TEXT);
+						} else if (mysql_thread___parse_failure_logs_digest) {
+							nqn.assign(digest_str);
+						} else {
+							nqn.assign(query_str);
+						}
 						// PMC-10002: A query has failed to be parsed. This can be due a incorrect query or
 						// due to ProxySQL not being able to properly parse it. In case the query is correct a
 						// bug report should be filed including the offending query.
@@ -6589,10 +6605,13 @@ bool MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 							string query_str = string((char *)CurrentQuery.QueryPointer, CurrentQuery.QueryLength);
 							string digest_str = string(CurrentQuery.get_digest_text());
 							string nqn;
-							if (mysql_thread___parse_failure_logs_digest)
-								nqn = digest_str;
-							else
-								nqn = query_str;
+							if (mysql_thread___log_mysql_statements == false) {
+								nqn.assign(ALTERNATE_TEXT);
+							} else if (mysql_thread___parse_failure_logs_digest) {
+								nqn.assign(digest_str);
+							} else {
+								nqn.assign(query_str);
+							}
 							proxy_error2(10002, "Unable to parse query. If correct, report it as a bug: %s\n", nqn.c_str());
 							proxy_debug(PROXY_DEBUG_MYSQL_QUERY_PROCESSOR, 5,
 										"Locking hostgroup for query %s\n", query_str.c_str());
@@ -7062,10 +7081,13 @@ bool MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 							kq = strncmp((const char *)CurrentQuery.QueryPointer, (const char *)"/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */" , CurrentQuery.QueryLength);
 							if (kq != 0) {
 								string nqn;
-								if (mysql_thread___parse_failure_logs_digest)
-									nqn = string(CurrentQuery.get_digest_text());
-								else
-									nqn = string((char *)CurrentQuery.QueryPointer,CurrentQuery.QueryLength);
+								if (mysql_thread___log_mysql_statements == false) {
+									nqn.assign(ALTERNATE_TEXT);
+								} else if (mysql_thread___parse_failure_logs_digest) {
+									nqn.assign(CurrentQuery.get_digest_text());
+								} else {
+									nqn.assign(string((char *)CurrentQuery.QueryPointer,CurrentQuery.QueryLength));
+								}
 								proxy_error2(10002, "Unable to parse query. If correct, report it as a bug: %s\n", nqn.c_str());
 								return false;
 							}
@@ -8414,7 +8436,14 @@ void MySQL_Session::unable_to_parse_set_statement(bool *lock_hostgroup) {
 	// we couldn't parse the query
 	string query_str = string((char *)CurrentQuery.QueryPointer,CurrentQuery.QueryLength);
 	string digest_str = string(CurrentQuery.get_digest_text());
-	string& nqn = ( mysql_thread___parse_failure_logs_digest == true ? digest_str : query_str );
+	string nqn;
+	if (mysql_thread___log_mysql_statements == false) {
+		nqn.assign(ALTERNATE_TEXT);
+	} else if (mysql_thread___parse_failure_logs_digest) {
+		nqn.assign(digest_str);
+	} else {
+		nqn.assign(query_str);
+	}
 	proxy_debug(PROXY_DEBUG_MYSQL_QUERY_PROCESSOR, 5, "Locking hostgroup for query %s\n", query_str.c_str());
 	if (qpo->multiplex == -1) {
 		// we have no rule about this SET statement. We set hostgroup locking
